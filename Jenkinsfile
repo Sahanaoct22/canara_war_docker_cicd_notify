@@ -10,7 +10,7 @@ pipeline {
     parameters {
         choice(name: 'ENVIRONMENT', choices: ['dev', 'prod'], description: 'Select deployment environment')
         choice(name: 'ACTION', choices: ['deploy', 'remove'], description: 'Select action to perform')
-        string(name: 'RECEIVER_EMAIL', defaultValue: 'yourmail@gmail.com', description: 'Email to send notification')
+        string(name: 'RECEIVER_EMAIL', defaultValue: 'team@example.com', description: 'Comma-separated recipient emails')
     }
 
     stages {
@@ -172,28 +172,18 @@ pipeline {
     post {
         success {
             withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                sh """
-                    GMAIL_USER=$GMAIL_USER \
-                    GMAIL_APP_PASS=$GMAIL_APP_PASS \
-                    ./jenkins_notify.sh \
-                    "success" \
-                    "${JOB_NAME}" \
-                    "${BUILD_ID}" \
-                    "${RECEIVER_EMAIL}"
-                """
+            sh """
+                GMAIL_USER=\$GMAIL_USER GMAIL_APP_PASS=\$GMAIL_APP_PASS \
+                /opt/scripts/jenkins_notify.sh "SUCCESS" "${JOB_NAME}" "${BUILD_ID}" "${RECEIVER_EMAIL}"
+            """
             }
         }
         failure {
             withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                sh """
-                    GMAIL_USER=$GMAIL_USER \
-                    GMAIL_APP_PASS=$GMAIL_APP_PASS \
-                    ./jenkins_notify.sh \
-                    "failure" \
-                    "${JOB_NAME}" \
-                    "${BUILD_ID}" \
-                    "${RECEIVER_EMAIL}"
-                """
+            sh """
+                GMAIL_USER=\$GMAIL_USER GMAIL_APP_PASS=\$GMAIL_APP_PASS \
+                /opt/scripts/jenkins_notify.sh "FAILED" "${JOB_NAME}" "${BUILD_ID}" "${RECEIVER_EMAIL}"
+            """
             }
         }
     }

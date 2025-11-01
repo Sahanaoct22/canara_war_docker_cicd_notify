@@ -1,42 +1,62 @@
 #!/bin/bash
+# ./jenkins_notify.sh
+# Usage: ./jenkins_notify.sh <STATUS> <JOB_NAME> <BUILD_ID> "<comma,separated,emails>"
+#
+# Designed & Developed by Sak_Shetty
 
-# Args: status, job, build, recipient
 STATUS="$1"
-JOB="$2"
-BUILD="$3"
-TO="$4"
+JOB_NAME="$2"
+BUILD_ID="$3"
+RECEIVERS="$4"
 
-# Read from Jenkins env vars
-GMAIL_USER="$GMAIL_USER"
-GMAIL_PASS="$GMAIL_APP_PASS"
+# fallback
+[ -z "$RECEIVERS" ] && RECEIVERS="defaultteam@example.com"
+# convert comma separated to space-separated
+TO_LIST=$(echo "$RECEIVERS" | sed 's/,/ /g')
 
-CONFIG_FILE="/tmp/.msmtprc"
+# Jenkins-provided credentials (set via withCredentials in pipeline)
+GMAIL_USER="${GMAIL_USER:-}"
+GMAIL_PASS="${GMAIL_APP_PASS:-}"
 
-cat > $CONFIG_FILE <<EOF
-defaults
-auth           on
-tls            on
-tls_trust_file /etc/ssl/certs/ca-certificates.crt
-
-account gmail
-host smtp.gmail.com
-port 587
-from $GMAIL_USER
-user $GMAIL_USER
-password $GMAIL_PASS
-
-account default : gmail
-EOF
-
-chmod 600 $CONFIG_FILE
-
-# Email formatting
-if [ "$STATUS" == "success" ]; then
-    SUBJECT="✅ Jenkins Build Success: $JOB #$BUILD"
-    MESSAGE="✅ Build Success\nJob: $JOB\nBuild ID: $BUILD\n\nJenkins Notification Service"
+# Install mailx if not present (idempotent)
+if ! command -v mailx &> /dev/null; then
+  echo "📦 mailx not found — installing..."
+  sudo apt-get update -y
+  sudo apt-get install -y mailutils heirloom-mailx
 else
-    SUBJECT="❌ Jenkins Build Failed: $JOB #$BUILD"
-    MESSAGE="❌ Build Failed\nJob: $JOB\nBuild ID: $BUILD\n\nCheck Jenkins logs"
+  echo "✅ mailx installed — skipping"
 fi
 
-echo -e "Subject: $SUBJECT\n\n$MESSAGE" | msmtp --file=$CONFIG_FILE "$TO"
+# Email content
+TIMESTAMP="$(date --rfc-3339=seconds)"
+SUBJECT_PREFIX="[Canara CI/CD]"
+SUBJECT="$SUBJECT_PREFIX $STATUS: $JOB_NAME #$BUILD_ID"
+SUBJECT="$SUBJECT - Designed & Developed by Sak_Shetty"
+
+BODY="$(cat <<EOF
+Build Status : $STATUS
+Job Name     : $JOB_NAME
+Build ID     : $BUILD_ID
+Date         : $TIMESTAMP
+Build URL    : ${BUILD_URL:-N/A}
+
+This notification was Designed & Developed by Sak_Shetty
+EOF
+)"
+
+# Send email using mailx with Gmail SMTP
+echo -e "$BODY" | mailx \
+  -S smtp="smtp.gmail.com:587" \
+  -S smtp-use-starttls \
+  -S smtp-auth=login \
+  -S smtp-auth-user="$GMAIL_USER" \
+  -S smtp-auth-password="$GMAIL_PASS" \
+  -S ssl-verify=ignore \
+  -s "$SUBJECT" $TO_LIST
+
+if [ $? -eq 0 ]; then
+  echo "✅ Mail sent successfully to: $TO_LIST"
+else
+  echo "❌ Mail sending failed"
+  exit 1
+fi
