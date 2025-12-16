@@ -1,8 +1,8 @@
 pipeline {
     agent any
-    
+
     environment {
-        DOCKERHUB_USERNAME = 'sakit333'
+        DOCKERHUB_USERNAME = 'sahanavnaik2210'  // Change if needed
         DOCKER_IMAGE = "${DOCKERHUB_USERNAME}/canara_sak"
         DOCKER_CONTAINER = 'canara_app_sak'
     }
@@ -30,34 +30,15 @@ pipeline {
             }
             post {
                 success {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                            sh """
-                            chmod +x jenkins_notify.sh || true
-
-                            GMAIL_USER=\$GMAIL_USER \
-                            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-                            ./jenkins_notify.sh "DEV ENV DEPLOY SUCCESS" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
-                            """
-                        }
-                    }
+                    notifyEmail("DEV ENV DEPLOY SUCCESS")
                 }
                 failure {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                            sh """
-                            chmod +x jenkins_notify.sh || true
-
-                            GMAIL_USER=\$GMAIL_USER \
-                            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-                            ./jenkins_notify.sh "DEV ENV DEPLOY FAILURE" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
-                            """
-                        }
-                    }
+                    notifyEmail("DEV ENV DEPLOY FAILURE")
                 }
             }
         }
-        stage("Remove container in Dev Environment") {
+
+        stage('Remove container in Dev Environment') {
             when {
                 allOf {
                     expression { params.ENVIRONMENT == 'dev' }
@@ -71,33 +52,14 @@ pipeline {
             }
             post {
                 success {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                            sh """
-                            chmod +x jenkins_notify.sh || true
-
-                            GMAIL_USER=\$GMAIL_USER \
-                            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-                            ./jenkins_notify.sh "DEV ENV REMOVE SUCCESS" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
-                            """
-                        }
-                    }
+                    notifyEmail("DEV ENV REMOVE SUCCESS")
                 }
                 failure {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                            sh """
-                            chmod +x jenkins_notify.sh || true
-
-                            GMAIL_USER=\$GMAIL_USER \
-                            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-                            ./jenkins_notify.sh "DEV ENV REMOVE FAILURE" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
-                            """
-                        }
-                    }
+                    notifyEmail("DEV ENV REMOVE FAILURE")
                 }
             }
         }
+
         stage('Build Docker Image') {
             when {
                 allOf {
@@ -109,6 +71,7 @@ pipeline {
                 sh 'sudo docker build -t $DOCKER_IMAGE .'
             }
         }
+
         stage('Login to Docker Hub') {
             when {
                 allOf {
@@ -122,6 +85,7 @@ pipeline {
                 }
             }
         }
+
         stage('Docker tag with Build ID') {
             when {
                 allOf {
@@ -133,6 +97,7 @@ pipeline {
                 sh "sudo docker tag $DOCKER_IMAGE $DOCKER_IMAGE:${env.BUILD_ID}"
             }
         }
+
         stage('Push to Dockerhub both latest and build id') {
             when {
                 allOf {
@@ -145,6 +110,7 @@ pipeline {
                 sh 'sudo docker push $DOCKER_IMAGE:latest'
             }
         }
+
         stage('Logout from Docker Hub') {
             when {
                 allOf {
@@ -156,6 +122,7 @@ pipeline {
                 sh 'sudo docker logout'
             }
         }
+
         stage('Clean up Local Docker Images') {
             when {
                 allOf {
@@ -165,11 +132,12 @@ pipeline {
             }
             steps {
                 sh '''
-                    sudo docker rmi $DOCKER_IMAGE:${BUILD_ID} $DOCKER_IMAGE:latest
+                    sudo docker rmi $DOCKER_IMAGE:${BUILD_ID} $DOCKER_IMAGE:latest || true
                     sudo docker image prune -af
                 '''
             }
         }
+
         stage('Deploy Docker Container in Production Server') {
             when {
                 allOf {
@@ -193,33 +161,14 @@ pipeline {
             }
             post {
                 success {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                            sh """
-                            chmod +x jenkins_notify.sh || true
-
-                            GMAIL_USER=\$GMAIL_USER \
-                            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-                            ./jenkins_notify.sh "PROD ENV DEPLOY SUCCESS" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
-                            """
-                        }
-                    }
+                    notifyEmail("PROD ENV DEPLOY SUCCESS")
                 }
                 failure {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                            sh """
-                            chmod +x jenkins_notify.sh || true
-
-                            GMAIL_USER=\$GMAIL_USER \
-                            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-                            ./jenkins_notify.sh "PROD ENV DEPLOY FAILURE" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
-                            """
-                        }
-                    }
+                    notifyEmail("PROD ENV DEPLOY FAILURE")
                 }
             }
         }
+
         stage('Remove Docker Container in Production Server') {
             when {
                 allOf {
@@ -247,40 +196,35 @@ pipeline {
             }
             post {
                 success {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                            sh """
-                            chmod +x jenkins_notify.sh || true
-
-                            GMAIL_USER=\$GMAIL_USER \
-                            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-                            ./jenkins_notify.sh "PROD ENV REMOVE SUCCESS" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
-                            """
-                        }
-                    }
+                    notifyEmail("PROD ENV REMOVE SUCCESS")
                 }
                 failure {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
-                            sh """
-                            chmod +x jenkins_notify.sh || true
-
-                            GMAIL_USER=\$GMAIL_USER \
-                            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-                            ./jenkins_notify.sh "PROD ENV REMOVE FAILURE" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
-                            """
-                        }
-                    }
+                    notifyEmail("PROD ENV REMOVE FAILURE")
                 }
             }
         }
     }
+
     post {
         success {
             echo 'Pipeline completed successfully.'
         }
         failure {
             echo 'Pipeline failed. Please check the logs.'
+        }
+    }
+}
+
+def notifyEmail(status) {
+    script {
+        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
+            sh """
+            chmod +x jenkins_notify.sh || true
+
+            GMAIL_USER=\$GMAIL_USER \
+            GMAIL_APP_PASS=\$GMAIL_APP_PASS \
+            ./jenkins_notify.sh "$status" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
+            """
         }
     }
 }
