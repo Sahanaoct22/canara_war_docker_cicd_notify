@@ -212,10 +212,9 @@ pipeline {
         failure {
             echo 'Pipeline failed. Please check the logs.'
         }
-    }
+  }
 }
-
-def notifyEmail(status) {
+ def notifyEmail(status) {
     script {
         withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
             sh """
@@ -228,3 +227,4 @@ def notifyEmail(status) {
         }
     }
 }
+
