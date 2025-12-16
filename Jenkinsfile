@@ -214,15 +214,15 @@ pipeline {
         }
   }
 }
- def notifyEmail(status) {
+def notifyEmail(status) {
     script {
-        withCredentials([usernamePassword(credentialsId: 'GMAIL_GMAILAUTH', usernameVariable: 'GMAIL_USER', passwordVariable: 'GMAIL_APP_PASS')]) {
+        withCredentials([string(credentialsId: 'GMAIL_APP_PASS', variable: 'GMAIL_APP_PASS')]) {
             sh """
             chmod +x jenkins_notify.sh || true
 
-            GMAIL_USER=\$GMAIL_USER \
+            GMAIL_USER=sahanavnaik2210@gmail.com \
             GMAIL_APP_PASS=\$GMAIL_APP_PASS \
-            ./jenkins_notify.sh "$status" "$JOB_NAME" "$BUILD_ID" "$RECEIVER_EMAIL"
+            ./jenkins_notify.sh "$status" "$JOB_NAME" "$BUILD_NUMBER" "$RECEIVER_EMAIL"
             """
         }
     }
